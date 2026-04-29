@@ -5,6 +5,7 @@ Blocks ingestion if validation fails.
 from PIL import Image
 import numpy as np
 from io import BytesIO
+from app.config import settings
 
 
 class ValidationError(Exception):
@@ -24,9 +25,10 @@ def validate_fabric_tile(data: bytes) -> None:
     for x, y in [(0, 0), (w, 0), (0, h), (w, h)]:
         composite.paste(img, (x, y))
     delta = _seam_delta(composite, w, h)
-    if delta > 10:
+    max_delta = settings.fabric_seam_delta_max
+    if delta > max_delta:
         raise ValidationError(
-            f"Tile has visible seams (delta={delta:.1f}, max allowed=10). "
+            f"Tile has visible seams (delta={delta:.1f}, max allowed={max_delta:.0f}). "
             "Ensure the tile tiles seamlessly."
         )
 

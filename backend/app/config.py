@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     use_s3: bool = False
     frontend_url: str = "http://localhost:3000"
     render_serve_base_url: str = "http://localhost:8000/renders"
+    fabric_seam_delta_max: float = 25.0  # raise for real photo tiles; lower for strict seamless QA
 
     @property
     def asset_path(self) -> Path:
