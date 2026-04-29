@@ -6,7 +6,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 TIMESTAMPTZ = DateTime(timezone=True)
-from sqlalchemy.orm import DeclarativeBase, relationship
+from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
@@ -22,6 +22,7 @@ class User(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(Text, unique=True, nullable=False)
     role = Column(Text, nullable=False, default="customer")  # customer | admin
+    hashed_password = Column(Text, nullable=True)
     created_at = Column(TIMESTAMPTZ, server_default=text("NOW()"), nullable=False)
 
 

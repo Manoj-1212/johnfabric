@@ -191,6 +191,11 @@ async def create_event(db: AsyncSession, data: dict) -> models.Event:
 
 # ─── Admin Audit ──────────────────────────────────────────────────────────────
 
+async def get_user_by_email(db: AsyncSession, email: str) -> Optional[models.User]:
+    result = await db.execute(select(models.User).where(models.User.email == email))
+    return result.scalar_one_or_none()
+
+
 async def log_audit(db: AsyncSession, admin_id: uuid.UUID, action: str,
                     target_type: str = None, target_id: uuid.UUID = None, meta: dict = None):
     obj = models.AdminAuditLog(

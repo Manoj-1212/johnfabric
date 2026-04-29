@@ -11,10 +11,12 @@ def resolve_asset(path: str) -> Path:
     return settings.asset_path / p
 
 
-def load_png(path: str) -> Image.Image:
+def load_png(path: str, fallback_size: tuple = (400, 400), fallback_color: tuple = (200, 200, 200, 200)) -> Image.Image:
     full = resolve_asset(path)
     if not full.exists():
-        raise FileNotFoundError(f"Asset not found: {full}")
+        import warnings
+        warnings.warn(f"Asset not found (using placeholder): {full}", stacklevel=2)
+        return Image.new("RGBA", fallback_size, fallback_color)
     return Image.open(full).convert("RGBA")
 
 

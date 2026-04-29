@@ -23,6 +23,12 @@ export const api = {
       body: JSON.stringify({ collar_id, cuff_id, fabric_id }),
     }),
 
+  login: (email: string, password: string) =>
+    apiFetch<{ access_token: string; token_type: string; role: string; email: string }>(
+      "/auth/login",
+      { method: "POST", body: JSON.stringify({ email, password }) }
+    ),
+
   trackEvent: (event_type: string, ids: Record<string, string>, session_id?: string) =>
     apiFetch("/events", {
       method: "POST",

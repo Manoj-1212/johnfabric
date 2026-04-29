@@ -6,7 +6,7 @@ from pathlib import Path
 from app.config import settings
 from app.db.session import engine
 from app.db import models
-from app.api.v1 import fabrics, collars, cuffs, render, configs, events
+from app.api.v1 import fabrics, collars, cuffs, render, configs, events, auth
 from app.api.v1.admin import fabrics as admin_fabrics
 from app.api.v1.admin import collars as admin_collars
 from app.api.v1.admin import cuffs as admin_cuffs
@@ -41,6 +41,7 @@ app.include_router(cuffs.router, prefix="/api/v1")
 app.include_router(render.router, prefix="/api/v1")
 app.include_router(configs.router, prefix="/api/v1")
 app.include_router(events.router, prefix="/api/v1")
+app.include_router(auth.router, prefix="/api/v1")
 
 # Admin routes
 app.include_router(admin_fabrics.router, prefix="/api/v1/admin")
