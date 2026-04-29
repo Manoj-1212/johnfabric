@@ -108,13 +108,11 @@ def _gen_placeholder_assets() -> None:
 # ─── DB seed ──────────────────────────────────────────────────────────────────
 
 async def seed() -> None:
+    import bcrypt as _bcrypt
     from sqlalchemy import select, text
-    from passlib.context import CryptContext
 
     from app.db.session import engine, AsyncSessionLocal
     from app.db import models
-
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
@@ -124,7 +122,7 @@ async def seed() -> None:
         )
 
     default_password = os.environ.get("ADMIN_PASSWORD", "John@1234")
-    hashed = pwd_context.hash(default_password)
+    hashed = _bcrypt.hashpw(default_password.encode(), _bcrypt.gensalt()).decode()
 
     async with AsyncSessionLocal() as db:
         # ── Admin user ────────────────────────────────────────────────────
