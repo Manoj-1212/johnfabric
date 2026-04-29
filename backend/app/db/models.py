@@ -1,9 +1,11 @@
 import uuid
 from sqlalchemy import (
     Boolean, Column, Integer, Numeric, Text, BigInteger,
-    ForeignKey, UniqueConstraint, Index, text
+    ForeignKey, UniqueConstraint, Index, text, DateTime
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB, TIMESTAMPTZ
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+
+TIMESTAMPTZ = DateTime(timezone=True)
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
