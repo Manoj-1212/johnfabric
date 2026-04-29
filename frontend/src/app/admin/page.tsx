@@ -23,6 +23,29 @@ async function adminUpload(path: string, token: string, file: File, query?: stri
   return res.json();
 }
 
+async function adminUploadCombo(
+  token: string,
+  collarId: string,
+  cuffId: string,
+  fabricId: string,
+  files: { frontFile?: File | null; collarFile?: File | null; cuffFile?: File | null },
+): Promise<RenderRecord> {
+  const form = new FormData();
+  form.append("collar_id", collarId);
+  form.append("cuff_id", cuffId);
+  form.append("fabric_id", fabricId);
+  if (files.frontFile) form.append("front_file", files.frontFile);
+  if (files.collarFile) form.append("collar_file", files.collarFile);
+  if (files.cuffFile) form.append("cuff_file", files.cuffFile);
+  const res = await fetch(`${API}/admin/renders/upload-combo`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 // ─── Record types ─────────────────────────────────────────────────────────────
 
 type FabricRecord = { id: string; sku: string; name: string; tier: string; pattern_type: string; colorway: string | null; hex_primary: string | null; active: boolean; asset_version: number };
@@ -392,15 +415,120 @@ function CollarCuffPanel({ type, token }: { type: "collar" | "cuff"; token: stri
   );
 }
 
+// ─── Upload Combo Modal ───────────────────────────────────────────────────────
+
+function UploadComboModal({ token, collars, cuffs, fabrics, onDone, onCancel }: {
+  token: string;
+  collars: CatalogRecord[];
+  cuffs: CatalogRecord[];
+  fabrics: FabricRecord[];
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [collarId, setCollarId] = useState(collars[0]?.id ?? "");
+  const [cuffId, setCuffId] = useState(cuffs[0]?.id ?? "");
+  const [fabricId, setFabricId] = useState(fabrics[0]?.id ?? "");
+  const [frontFile, setFrontFile] = useState<File | null>(null);
+  const [collarFile, setCollarFile] = useState<File | null>(null);
+  const [cuffFile, setCuffFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const frontRef = useRef<HTMLInputElement>(null);
+  const collarRef = useRef<HTMLInputElement>(null);
+  const cuffRef = useRef<HTMLInputElement>(null);
+  const hasFile = !!(frontFile || collarFile || cuffFile);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!hasFile) { setErr("Upload at least one image."); return; }
+    setBusy(true); setErr(null);
+    try {
+      await adminUploadCombo(token, collarId, cuffId, fabricId, { frontFile, collarFile, cuffFile });
+      onDone();
+    } catch (ex: unknown) {
+      setErr((ex as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const pickerCls = "border-2 border-dashed border-stone-200 rounded-xl p-4 text-center cursor-pointer hover:border-stone-400 transition-colors";
+
+  return (
+    <form onSubmit={submit} className="space-y-5">
+      {err && <ErrBox msg={err} onClose={() => setErr(null)} />}
+      <div className="space-y-3">
+        <Field label="Collar">
+          <select value={collarId} onChange={e => setCollarId(e.target.value)} className={inputCls}>
+            {collars.map(c => <option key={c.id} value={c.id}>{c.name} ({c.sku})</option>)}
+          </select>
+        </Field>
+        <Field label="Cuff">
+          <select value={cuffId} onChange={e => setCuffId(e.target.value)} className={inputCls}>
+            {cuffs.map(c => <option key={c.id} value={c.id}>{c.name} ({c.sku})</option>)}
+          </select>
+        </Field>
+        <Field label="Fabric">
+          <select value={fabricId} onChange={e => setFabricId(e.target.value)} className={inputCls}>
+            {fabrics.map(f => <option key={f.id} value={f.id}>{f.name} ({f.sku})</option>)}
+          </select>
+        </Field>
+      </div>
+      <p className="text-xs text-stone-400">Upload one or more pre-shot images for this combination. You can upload the rest later.</p>
+      <div className="grid grid-cols-3 gap-3">
+        <div className={pickerCls} onClick={() => frontRef.current?.click()}>
+          <input ref={frontRef} type="file" accept="image/*" className="hidden"
+            onChange={e => setFrontFile(e.target.files?.[0] ?? null)} />
+          <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1.5">Front</p>
+          {frontFile
+            ? <p className="text-xs text-stone-700 truncate">{frontFile.name}</p>
+            : <p className="text-xs text-stone-400">Click to choose</p>}
+        </div>
+        <div className={pickerCls} onClick={() => collarRef.current?.click()}>
+          <input ref={collarRef} type="file" accept="image/*" className="hidden"
+            onChange={e => setCollarFile(e.target.files?.[0] ?? null)} />
+          <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1.5">Collar Detail</p>
+          {collarFile
+            ? <p className="text-xs text-stone-700 truncate">{collarFile.name}</p>
+            : <p className="text-xs text-stone-400">Click to choose</p>}
+        </div>
+        <div className={pickerCls} onClick={() => cuffRef.current?.click()}>
+          <input ref={cuffRef} type="file" accept="image/*" className="hidden"
+            onChange={e => setCuffFile(e.target.files?.[0] ?? null)} />
+          <p className="text-[11px] font-semibold text-stone-500 uppercase tracking-wide mb-1.5">Cuff Detail</p>
+          {cuffFile
+            ? <p className="text-xs text-stone-700 truncate">{cuffFile.name}</p>
+            : <p className="text-xs text-stone-400">Click to choose</p>}
+        </div>
+      </div>
+      <div className="flex gap-2 justify-end pt-1">
+        <button type="button" onClick={onCancel} className={btnSecondary}>Cancel</button>
+        <button type="submit" disabled={!hasFile || busy} className={btnPrimary}>
+          {busy ? "Uploading…" : "Upload Photos"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 // ─── Renders Panel ────────────────────────────────────────────────────────────
 
 function RendersPanel({ token }: { token: string }) {
   const [items, setItems] = useState<RenderRecord[]>([]);
+  const [collars, setCollars] = useState<CatalogRecord[]>([]);
+  const [cuffs, setCuffs] = useState<CatalogRecord[]>([]);
+  const [fabrics, setFabrics] = useState<FabricRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<"all" | "valid" | "invalid">("all");
+  const [showUpload, setShowUpload] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Build name lookup maps
+  const collarMap = Object.fromEntries(collars.map(c => [c.id, c.name]));
+  const cuffMap = Object.fromEntries(cuffs.map(c => [c.id, c.name]));
+  const fabricMap = Object.fromEntries(fabrics.map(f => [f.id, f.name]));
 
   const reload = useCallback(() => {
     setLoading(true);
@@ -412,6 +540,13 @@ function RendersPanel({ token }: { token: string }) {
 
   useEffect(() => { reload(); }, [reload]);
 
+  // Fetch catalog lists once for dropdowns + name lookup
+  useEffect(() => {
+    adminFetch<CatalogRecord[]>("/collars", token).then(setCollars).catch(() => {});
+    adminFetch<CatalogRecord[]>("/cuffs", token).then(setCuffs).catch(() => {});
+    adminFetch<FabricRecord[]>("/fabrics", token).then(setFabrics).catch(() => {});
+  }, [token]);
+
   async function invalidate() {
     if (!selected.size) return;
     await adminFetch("/renders/invalidate", token, { method: "POST", body: JSON.stringify({ render_ids: [...selected] }) });
@@ -422,10 +557,24 @@ function RendersPanel({ token }: { token: string }) {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
 
+  const catalogReady = collars.length > 0 && cuffs.length > 0 && fabrics.length > 0;
+
   return (
     <div className="space-y-4">
       {err && <ErrBox msg={err} onClose={() => setErr(null)} />}
       {msg && <OkBox msg={msg} onClose={() => setMsg(null)} />}
+      {showUpload && catalogReady && (
+        <Modal title="Upload Combination Photos" onClose={() => setShowUpload(false)}>
+          <UploadComboModal
+            token={token}
+            collars={collars}
+            cuffs={cuffs}
+            fabrics={fabrics}
+            onDone={() => { setShowUpload(false); setMsg("Photos uploaded — combination is now live."); reload(); }}
+            onCancel={() => setShowUpload(false)}
+          />
+        </Modal>
+      )}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex gap-2">
           {(["all","valid","invalid"] as const).map(f => (
@@ -436,6 +585,9 @@ function RendersPanel({ token }: { token: string }) {
           ))}
         </div>
         <div className="flex gap-2">
+          <button onClick={() => setShowUpload(true)} disabled={!catalogReady} className={btnPrimary}>
+            + Upload Combo Photos
+          </button>
           {selected.size > 0 && (
             <button onClick={invalidate} className="bg-red-600 text-white rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-red-700">
               Invalidate {selected.size} selected
@@ -455,7 +607,7 @@ function RendersPanel({ token }: { token: string }) {
                   <input type="checkbox" checked={selected.size === items.length && items.length > 0}
                     onChange={() => setSelected(selected.size === items.length ? new Set() : new Set(items.map(i => i.id)))} />
                 </th>
-                {["Collar ID","Cuff ID","Fabric ID","Status","Previews"].map(h => (
+                {["Collar","Cuff","Fabric","Status","Photos"].map(h => (
                   <th key={h} className="px-3 py-2.5 text-left text-[11px] font-semibold text-stone-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -464,10 +616,14 @@ function RendersPanel({ token }: { token: string }) {
               {items.map(r => (
                 <tr key={r.id} className="hover:bg-stone-50">
                   <td className="px-3 py-2"><input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelect(r.id)} /></td>
-                  <td className="px-3 py-2 font-mono text-[10px] text-stone-500">{r.collar_id.slice(0,8)}…</td>
-                  <td className="px-3 py-2 font-mono text-[10px] text-stone-500">{r.cuff_id.slice(0,8)}…</td>
-                  <td className="px-3 py-2 font-mono text-[10px] text-stone-500">{r.fabric_id.slice(0,8)}…</td>
-                  <td className="px-3 py-2"><span className={`text-xs font-medium px-2 py-0.5 rounded-full ${r.is_valid ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>{r.is_valid ? "Valid" : "Stale"}</span></td>
+                  <td className="px-3 py-2 text-stone-700 text-sm">{collarMap[r.collar_id] ?? r.collar_id.slice(0,8)+"…"}</td>
+                  <td className="px-3 py-2 text-stone-700 text-sm">{cuffMap[r.cuff_id] ?? r.cuff_id.slice(0,8)+"…"}</td>
+                  <td className="px-3 py-2 text-stone-700 text-sm">{fabricMap[r.fabric_id] ?? r.fabric_id.slice(0,8)+"…"}</td>
+                  <td className="px-3 py-2">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${r.is_valid ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
+                      {r.is_valid ? "Live" : "Stale"}
+                    </span>
+                  </td>
                   <td className="px-3 py-2">
                     <div className="flex gap-2">
                       {r.front_url && <a href={r.front_url} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline">Front</a>}
