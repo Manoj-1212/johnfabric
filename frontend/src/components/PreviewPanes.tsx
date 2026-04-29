@@ -5,7 +5,9 @@ import { useConfigStore } from "@/store/configStore";
 export function PreviewPanes() {
   const { render, loading, selectedCollar, selectedCuff, selectedFabric } = useConfigStore();
 
-  const isEmpty = !render && !loading;
+  const hasSelection = !!(selectedCollar && selectedCuff && selectedFabric);
+  const noImage = hasSelection && !loading && !render;
+  const isEmpty = !hasSelection && !loading && !render;
 
   return (
     <div className="space-y-4">
@@ -17,7 +19,7 @@ export function PreviewPanes() {
         {loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 z-10 gap-3">
             <Spinner />
-            <span className="text-xs text-stone-400 tracking-widest uppercase">Composing…</span>
+            <span className="text-xs text-stone-400 tracking-widest uppercase">Loading…</span>
           </div>
         )}
 
@@ -29,6 +31,8 @@ export function PreviewPanes() {
             className="object-contain p-8"
             unoptimized
           />
+        ) : noImage ? (
+          <NoImageState />
         ) : isEmpty ? (
           <EmptyState />
         ) : null}
@@ -102,7 +106,9 @@ function DetailCard({
         <Image src={url} alt={label} fill className="object-contain p-6" unoptimized />
       ) : (
         !loading && (
-          <span className="text-[10px] tracking-widest uppercase text-stone-300">{hint ?? label}</span>
+          <span className="text-[10px] tracking-widest uppercase text-stone-300">
+            {hint ? "Coming soon" : label}
+          </span>
         )
       )}
       <span className="absolute bottom-2 left-0 right-0 text-center text-[9px] tracking-[0.15em] uppercase text-stone-400">
@@ -141,6 +147,24 @@ function EmptyState() {
         />
       </svg>
       <p className="text-sm text-stone-400">Select collar, cuff &amp; fabric to see your shirt</p>
+    </div>
+  );
+}
+
+function NoImageState() {
+  return (
+    <div className="flex flex-col items-center gap-3 text-stone-300 select-none py-16 px-8 text-center">
+      <svg width="72" height="80" viewBox="0 0 72 80" fill="none" className="opacity-20">
+        <path
+          d="M20 4 L4 20 L16 24 L16 76 L56 76 L56 24 L68 20 L52 4 L40 14 C38 16 34 16 32 14 Z"
+          stroke="#9ca3af"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          fill="none"
+        />
+      </svg>
+      <p className="text-sm text-stone-400">Photo coming soon</p>
+      <p className="text-xs text-stone-300">This combination hasn&apos;t been photographed yet</p>
     </div>
   );
 }

@@ -66,36 +66,9 @@ async def render_all(req: schemas.RenderAllRequest, db: AsyncSession = Depends(g
         await redis_cache.cache_set(redis_key, payload)
         return schemas.RenderAllResponse(**payload, source="db", ms=0)
 
-    # 3. Compose
-    t_front = await crud.get_template(db, "front")
-    t_collar = await crud.get_template(db, "collar_detail")
-    t_cuff = await crud.get_template(db, "cuff_detail")
-    if not t_front or not t_collar or not t_cuff:
-        raise HTTPException(500, "Shirt templates not configured")
-
-    t0 = time.perf_counter()
-    rendered = composer.render_all(t_front, t_collar, t_cuff, fabric, collar, cuff)
-    ms = int((time.perf_counter() - t0) * 1000)
-
-    # 4. Persist to DB
-    db_row = await crud.upsert_combination_render(db, {
-        "collar_id": collar.id,
-        "cuff_id": cuff.id,
-        "fabric_id": fabric.id,
-        "front_url": rendered["front_url"],
-        "collar_url": rendered["collar_url"],
-        "cuff_url": rendered["cuff_url"],
-        "asset_version_collar": collar.asset_version,
-        "asset_version_cuff": cuff.asset_version,
-        "asset_version_fabric": fabric.asset_version,
-        "is_valid": True,
-    })
-
-    payload = {
-        "front_url": rendered["front_url"],
-        "collar_url": rendered["collar_url"],
-        "cuff_url": rendered["cuff_url"],
-        "render_id": db_row.id,
-    }
-    await redis_cache.cache_set(redis_key, payload)
-    return schemas.RenderAllResponse(**payload, source="generated", ms=ms)
+    # 3. No pre-shot image for this combo yet — return 404 so the UI
+    # can show a friendly "not available" state instead of a 500.
+    raise HTTPException(
+        status_code=404,
+        detail="combo_not_available",
+    )

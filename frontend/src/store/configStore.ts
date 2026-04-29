@@ -87,11 +87,17 @@ async function _triggerRender(
   cuffId: string,
   fabricId: string,
 ) {
-  set({ loading: true, error: null });
+  set({ loading: true, error: null, render: null });
   try {
     const render = await api.renderAll(collarId, cuffId, fabricId);
-    set({ render, loading: false });
+    set({ render, loading: false, error: null });
   } catch (e: unknown) {
-    set({ loading: false, error: (e as Error).message });
+    const msg = (e as Error).message;
+    // 404 combo_not_available is expected — photo not uploaded yet, not an error
+    if (msg.includes("404") || msg.includes("combo_not_available")) {
+      set({ loading: false, error: null, render: null });
+    } else {
+      set({ loading: false, error: msg });
+    }
   }
 }
