@@ -143,8 +143,8 @@ if [[ ! -f "${VENV_DIR}/bin/pip" ]]; then
   rm -rf "${VENV_DIR}"
   ${PYTHON} -m venv "${VENV_DIR}"
 fi
-"${VENV_DIR}/bin/pip" install --quiet --upgrade pip
-"${VENV_DIR}/bin/pip" install --quiet -r "${APP_DIR}/backend/requirements.txt"
+"${VENV_DIR}/bin/pip" install --upgrade pip
+"${VENV_DIR}/bin/pip" install -r "${APP_DIR}/backend/requirements.txt" || error "pip install failed"
 
 # Seed DB (idempotent)
 cd "${APP_DIR}/backend"
@@ -178,6 +178,17 @@ info "Backend service: $(sudo systemctl is-active johnfabric-backend)"
 # ── 6. Frontend ───────────────────────────────────────────────────────────────
 info "Step 6/8 — Frontend (Next.js)"
 
+# Add swap if not present — Next.js build needs >1GB RAM (t3.small only has 2GB)
+if ! swapon --show | grep -q '/swapfile'; then
+  info "Creating 2GB swapfile for build headroom..."
+  sudo fallocate -l 2G /swapfile
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile
+  sudo swapon /swapfile
+  echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab > /dev/null
+  info "Swap: $(free -h | grep Swap)"
+fi
+
 cd "${APP_DIR}/frontend"
 
 # Write .env.local if not present
@@ -188,8 +199,11 @@ NEXT_PUBLIC_API_URL=http://${DOMAIN}/api/v1
 EOF
 fi
 
-npm ci --silent
-npm run build
+info "Installing frontend dependencies..."
+npm ci || error "npm ci failed — check network or package.json"
+
+info "Building Next.js (this takes 1-3 minutes)..."
+npm run build || error "next build failed — run: cd ~/johnfabric/frontend && npm run build"
 
 # systemd service
 info "Creating systemd service: johnfabric-frontend"
