@@ -200,7 +200,11 @@ EOF
 fi
 
 info "Installing frontend dependencies..."
-npm ci || error "npm ci failed — check network or package.json"
+if [[ -f package-lock.json ]]; then
+  npm ci || error "npm ci failed — check package-lock.json"
+else
+  npm install || error "npm install failed — check package.json or network"
+fi
 
 info "Building Next.js (this takes 1-3 minutes)..."
 npm run build || error "next build failed — run: cd ~/johnfabric/frontend && npm run build"
