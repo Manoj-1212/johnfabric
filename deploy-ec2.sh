@@ -137,8 +137,10 @@ else
   warn ".env already exists — skipping (update manually if needed)"
 fi
 
-# Virtual env + install
-if [[ ! -d "${VENV_DIR}" ]]; then
+# Virtual env + install (recreate if broken — e.g. pip missing)
+if [[ ! -f "${VENV_DIR}/bin/pip" ]]; then
+  info "Creating Python virtual environment..."
+  rm -rf "${VENV_DIR}"
   ${PYTHON} -m venv "${VENV_DIR}"
 fi
 "${VENV_DIR}/bin/pip" install --quiet --upgrade pip
