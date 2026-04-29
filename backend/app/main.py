@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from sqlalchemy import text
 
 from app.config import settings
 from app.db.session import engine
@@ -56,6 +57,10 @@ app.include_router(admin_audit.router, prefix="/api/v1/admin")
 async def on_startup():
     async with engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
+        # Ensure hashed_password column exists for older deployments
+        await conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password TEXT")
+        )
 
 
 @app.get("/health")
