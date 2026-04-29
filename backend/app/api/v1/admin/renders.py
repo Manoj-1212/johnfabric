@@ -1,4 +1,5 @@
 import uuid
+import time
 from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -10,6 +11,8 @@ from app.db import crud, models
 from app.middleware.auth import require_admin
 from app.db.models import User, CombinationRender
 from app.config import settings
+from app.core import cache as redis_cache
+from app.core.hashing import cache_key
 
 router = APIRouter(tags=["admin-renders"])
 
@@ -72,6 +75,7 @@ async def admin_upload_combo(
     render_dir = settings.render_path / collar.sku / cuff.sku / fabric.sku
     render_dir.mkdir(parents=True, exist_ok=True)
     base_url = f"{settings.render_serve_base_url}/{collar.sku}/{cuff.sku}/{fabric.sku}"
+    v = int(time.time())  # cache-buster: forces browser to re-fetch the new image
 
     # Get any existing row (valid OR invalid) to preserve URLs for views not being updated
     result = await db.execute(
@@ -89,13 +93,18 @@ async def admin_upload_combo(
 
     if front_file:
         (render_dir / "front.png").write_bytes(await front_file.read())
-        front_url = f"{base_url}/front.png"
+        front_url = f"{base_url}/front.png?v={v}"
     if collar_file:
         (render_dir / "collar.png").write_bytes(await collar_file.read())
-        collar_url = f"{base_url}/collar.png"
+        collar_url = f"{base_url}/collar.png?v={v}"
     if cuff_file:
         (render_dir / "cuff.png").write_bytes(await cuff_file.read())
-        cuff_url = f"{base_url}/cuff.png"
+        cuff_url = f"{base_url}/cuff.png?v={v}"
+
+    # Clear Redis so the next /render/all call reads fresh data from DB
+    rkey = cache_key("all", collar_id, cuff_id, fabric_id,
+                     collar.asset_version, cuff.asset_version, fabric.asset_version)
+    await redis_cache.cache_delete(rkey)
 
     if existing:
         existing.front_url = front_url
