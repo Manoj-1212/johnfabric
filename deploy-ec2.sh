@@ -60,7 +60,10 @@ if ! command -v python3.12 &>/dev/null; then
   info "Installing Python 3.12..."
   sudo add-apt-repository -y ppa:deadsnakes/ppa
   sudo apt-get update -qq
-  sudo apt-get install -y -qq python3.12 python3.12-venv python3.12-dev
+  sudo apt-get install -y -qq python3.12 python3.12-venv python3.12-dev python3.12-distutils
+else
+  # Ensure venv module is present even if python3.12 was pre-installed
+  sudo apt-get install -y -qq python3.12-venv python3.12-dev 2>/dev/null || true
 fi
 
 # Node 20
